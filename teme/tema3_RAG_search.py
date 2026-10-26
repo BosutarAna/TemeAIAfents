@@ -202,7 +202,8 @@ def search_in_source(
     model: SentenceTransformer,
     query: str,
     source: str,
-    n_results: int = 3
+    n_results: int = 3,
+    max_distance: float=0.5
 ) -> dict:
     """
     Searches in the database BUT only in chunks from a specific file.
@@ -222,6 +223,25 @@ def search_in_source(
         where={"source": source},  # <-- FILTER BY SOURCE FILE
         include=["documents", "metadatas", "distances"]
     )
+    # Filtreaza rezultatele cu distanta prea mare
+    filtered_docs = []
+    filtered_metas = []
+    filtered_dists = []
+
+    for doc, meta, dist in zip(
+        results["documents"][0],
+        results["metadatas"][0],
+        results["distances"][0]
+    ):
+        if dist < max_distance: #pastreaza doar daca e sub limita
+            filtered_docs.append(doc)
+            filtered_metas.append(meta)
+            filtered_dists.append(dist)
+        #inlocuieste rezultatele cu cele filtrate (tema 3.2)
+        results["documents"] = [filtered_docs]
+        results["metadatas"] = [filtered_metas]
+        results["distances"] = [filtered_dists]
+
 
     return results
 
@@ -362,6 +382,13 @@ def main():
         # Step 5: Search (filtered by source)
         print(f"\nSearching in '{source_file}'...")
         results = search_in_source(collection, model, question, source_file)
+        print("Distante gasite: ", results["distances"])
+
+        #tema 3.2
+        if not results["documents"][0]:
+            print("Nu s-a gasit nimic relevant (distanta e prea mare).")
+            continue
+
 
         if not results["documents"][0]:
             print("No relevant results found.")
